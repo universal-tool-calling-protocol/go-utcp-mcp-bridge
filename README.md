@@ -23,4 +23,5 @@ git clone https://github.com/your-org/utcp-mcp-bridge.git
 cd utcp-mcp-bridge
 go mod tidy
 go build -o utcp-mcp-bridge main.go
+sudo mv utcp-mcp-bridge /usr/local/bin/
 ```
