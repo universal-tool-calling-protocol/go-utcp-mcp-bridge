@@ -1,4 +1,4 @@
-module main
+module github.com/universal-tool-calling-protocol/go-utcp-mcp-bridge
 
 go 1.25.0
 
