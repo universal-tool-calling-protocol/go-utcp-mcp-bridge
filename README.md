@@ -1,4 +1,5 @@
 # UTCP MCP Bridge
+![MCP vs. UTCP](https://github.com/universal-tool-calling-protocol/.github/raw/main/assets/banner.png)
 
 **UTCP MCP Bridge** connects the [Universal Tool Calling Protocol (UTCP)](https://github.com/universal-tool-calling-protocol/go-utcp) to an [MCP (Mark3Labs Communication Protocol) server](https://github.com/mark3labs/mcp-go), allowing UTCP tools to be exposed and called via MCP-compatible clients.
 
