@@ -3,18 +3,37 @@
 **UTCP MCP Bridge** connects the [Universal Tool Calling Protocol (UTCP)](https://github.com/universal-tool-calling-protocol/go-utcp) to an [MCP (Mark3Labs Communication Protocol) server](https://github.com/mark3labs/mcp-go), allowing UTCP tools to be exposed and called via MCP-compatible clients.
 
 This bridge enables seamless integration between UTCP tools and any MCP-based ecosystem, providing standard tool invocation, search, streaming, and provider registration functionalities.
+A lightweight Go-based bridge that exposes **UTCP tools**, **UTCP chains**, and **UTCP CodeMode** execution as **MCP tools** — enabling any MCP-compatible client (Claude Desktop, Claude CLI, LLM runtimes implementing MCP) to call UTCP tools seamlessly.
+
+This bridge lets you:
+
+- 🔌 Load UTCP providers dynamically from JSON  
+- 🛠 Call UTCP tools via MCP  
+- 🔍 Search the UTCP tool registry  
+- 🔄 Stream UTCP tool results over MCP  
+- ⛓️ Execute multi-step **UTCP Chains** via a single MCP call  
+- 🧩 Run **Go CodeMode** snippets through UTCP (inline Go execution)  
+- 🤝 Register new providers dynamically at runtime  
+
+Designed with flexibility in mind, the bridge can power anything from local tool-automation setups to distributed LLM agent workflows.
 
 ---
 
 ## Features
 
-- **Call UTCP tools via MCP** (`utcp_call_tool`)
-- **Stream UTCP tool output** (`utcp_call_tool_stream`)
-- **Search available UTCP tools** (`utcp_search_tools`)
-- **Register new UTCP providers dynamically** (`utcp_register_provider`)
-- Compatible with all UTCP provider types: CLI, GraphQL, gRPC, HTTP, SSE, TCP, UDP, WebSocket, WebRTC, Text, Streamable HTTP, and MCP.
+### ✓ UTCP → MCP Tool Mapping
+
+| MCP Tool Name             | Description |
+|---------------------------|-------------|
+| `utcp_call_tool`          | Call any UTCP tool with arguments |
+| `utcp_search_tools`       | Fuzzy-search tools in UTCP registry |
+| `utcp_call_tool_stream`   | Stream responses from UTCP tools |
+| `utcp_register_provider`  | Register new UTCP provider at runtime |
+| `utcp_run_chain`          | Execute UTCP tool chain (ChainStep[]) |
+| `utcp_run_code`           | Execute Go CodeMode (inline Go code) |
 
 ---
+
 
 ## Installation
 
