@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	mark3lab "github.com/mark3labs/mcp-go/mcp"
 
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/universal-tool-calling-protocol/go-utcp"
+	"github.com/universal-tool-calling-protocol/go-utcp/src/plugins/chain"
 	"github.com/universal-tool-calling-protocol/go-utcp/src/providers/base"
 	"github.com/universal-tool-calling-protocol/go-utcp/src/providers/cli"
 	"github.com/universal-tool-calling-protocol/go-utcp/src/providers/graphql"
@@ -116,12 +118,14 @@ func UnmarshalProvider(data []byte) (base.Provider, error) {
 // UTCPMCPBridge connects a UTCP client to an MCP server
 type UTCPMCPBridge struct {
 	utcpClient utcp.UtcpClientInterface
+	utcpChain  chain.UtcpChainClient
 	mcpServer  *server.MCPServer
 }
 
-func NewUTCPMCPBridge(utcpClient utcp.UtcpClientInterface) (*UTCPMCPBridge, error) {
+func NewUTCPMCPBridge(utcpClient utcp.UtcpClientInterface, utcpChain chain.UtcpChainClient) (*UTCPMCPBridge, error) {
 	bridge := &UTCPMCPBridge{
 		utcpClient: utcpClient,
+		utcpChain:  utcpChain,
 	}
 
 	// Create MCP server
@@ -191,8 +195,87 @@ func (b *UTCPMCPBridge) registerToolHandlers() error {
 			Required: []string{"provider_config"},
 		},
 	}, b.handleRegisterProvider)
+	registerUTCPRunChain(b)
 
 	return nil
+}
+
+func registerUTCPRunChain(b *UTCPMCPBridge) {
+	b.mcpServer.AddTool(mark3lab.Tool{
+		Name:        "utcp_run_chain",
+		Description: "Run a UTCP tool chain using UtcpChainClient",
+		InputSchema: mark3lab.ToolInputSchema{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"steps": map[string]interface{}{
+					"type":  "array",
+					"items": map[string]interface{}{"type": "object"},
+				},
+				"timeout": map[string]interface{}{
+					"type":    "integer",
+					"default": 30000,
+				},
+			},
+			Required: []string{"steps"},
+		},
+	}, b.handleRunChain)
+}
+
+func (b *UTCPMCPBridge) handleRunChain(
+	ctx context.Context,
+	request mark3lab.CallToolRequest,
+) (*mark3lab.CallToolResult, error) {
+
+	// ----- Extract arguments -----
+	args, ok := request.Params.Arguments.(map[string]any)
+	if !ok {
+		return mark3lab.NewToolResultError("invalid arguments"), nil
+	}
+
+	rawSteps, ok := args["steps"].([]any)
+	if !ok {
+		return mark3lab.NewToolResultError("steps must be an array"), nil
+	}
+
+	// ----- Handle timeout -----
+	timeout := 30 * time.Second
+	if t, exists := args["timeout"]; exists {
+		if tf, ok := t.(float64); ok {
+			timeout = time.Duration(int(tf)) * time.Millisecond
+		}
+	}
+
+	// ----- Map raw MCP steps -> UTCP ChainStep -----
+	steps := make([]chain.ChainStep, 0, len(rawSteps))
+
+	for _, raw := range rawSteps {
+		m, _ := raw.(map[string]any)
+
+		step := chain.ChainStep{
+			ID:          castString(m["id"]),
+			ToolName:    castString(m["tool_name"]),
+			Inputs:      castMap(m["inputs"]),
+			UsePrevious: castBool(m["use_previous"]),
+			Stream:      castBool(m["stream"]),
+		}
+
+		// Basic validation
+		if step.ToolName == "" {
+			return mark3lab.NewToolResultError("each step requires tool_name"), nil
+		}
+
+		steps = append(steps, step)
+	}
+
+	// ----- Execute Chain -----
+	result, err := b.utcpChain.CallToolChain(ctx, steps, timeout)
+	if err != nil {
+		return mark3lab.NewToolResultError(fmt.Sprintf("chain failed: %v", err)), nil
+	}
+
+	// ----- Return JSON result -----
+	resJSON, _ := json.Marshal(result)
+	return mark3lab.NewToolResultText(string(resJSON)), nil
 }
 
 // Handlers using server.CallToolRequest / server.CallToolResult
@@ -326,8 +409,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create UTCP client: %v", err)
 	}
-
-	bridge, err := NewUTCPMCPBridge(utcpClient)
+	utcpChain := chain.UtcpChainClient{Client: utcpClient}
+	bridge, err := NewUTCPMCPBridge(utcpClient, utcpChain)
 	if err != nil {
 		log.Fatalf("Failed to create MCP bridge: %v", err)
 	}
@@ -336,4 +419,28 @@ func main() {
 	if err := bridge.Start(); err != nil {
 		log.Fatalf("Failed to start MCP bridge: %v", err)
 	}
+}
+
+func castString(v any) string {
+	if v == nil {
+		return ""
+	}
+	s, _ := v.(string)
+	return s
+}
+
+func castBool(v any) bool {
+	b, _ := v.(bool)
+	return b
+}
+
+func castMap(v any) map[string]any {
+	if v == nil {
+		return map[string]any{}
+	}
+	m, _ := v.(map[string]any)
+	if m == nil {
+		return map[string]any{}
+	}
+	return m
 }
