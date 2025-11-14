@@ -28,7 +28,7 @@ Designed with flexibility in mind, the bridge can power anything from local tool
 | `utcp_call_tool_stream`   | Stream responses from UTCP tools |
 | `utcp_register_provider`  | Register new UTCP provider at runtime |
 | `utcp_run_chain`          | Execute UTCP tool chain (ChainStep[]) |
-| `utcp_run_code`           | Execute Go CodeMode (inline Go code) |
+| `utcp_run_code`           | Execute Go CodeMode                   |
 
 ---
 
