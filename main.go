@@ -13,6 +13,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/universal-tool-calling-protocol/go-utcp"
 	"github.com/universal-tool-calling-protocol/go-utcp/src/plugins/chain"
+	"github.com/universal-tool-calling-protocol/go-utcp/src/plugins/codemode"
 	"github.com/universal-tool-calling-protocol/go-utcp/src/providers/base"
 	"github.com/universal-tool-calling-protocol/go-utcp/src/providers/cli"
 	"github.com/universal-tool-calling-protocol/go-utcp/src/providers/graphql"
@@ -119,13 +120,18 @@ func UnmarshalProvider(data []byte) (base.Provider, error) {
 type UTCPMCPBridge struct {
 	utcpClient utcp.UtcpClientInterface
 	utcpChain  chain.UtcpChainClient
-	mcpServer  *server.MCPServer
+	utcpCode   codemode.CodeModeUTCP
+
+	mcpServer *server.MCPServer
 }
 
-func NewUTCPMCPBridge(utcpClient utcp.UtcpClientInterface, utcpChain chain.UtcpChainClient) (*UTCPMCPBridge, error) {
+func NewUTCPMCPBridge(utcpClient utcp.UtcpClientInterface) (*UTCPMCPBridge, error) {
 	bridge := &UTCPMCPBridge{
 		utcpClient: utcpClient,
-		utcpChain:  utcpChain,
+		utcpChain: chain.UtcpChainClient{
+			Client: utcpClient,
+		},
+		utcpCode: *codemode.NewCodeModeUTCP(utcpClient),
 	}
 
 	// Create MCP server
@@ -196,8 +202,28 @@ func (b *UTCPMCPBridge) registerToolHandlers() error {
 		},
 	}, b.handleRegisterProvider)
 	registerUTCPRunChain(b)
+	registerUTCPCodeMode(b)
 
 	return nil
+}
+
+func registerUTCPCodeMode(b *UTCPMCPBridge) {
+	// RunCodeMode
+	b.mcpServer.AddTool(mark3lab.Tool{
+		Name:        "utcp_run_code",
+		Description: "Execute inline Go code via UTCP CodeMode engine",
+		InputSchema: mark3lab.ToolInputSchema{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"code": map[string]interface{}{"type": "string"},
+				"timeout": map[string]interface{}{
+					"type":    "integer",
+					"default": 3000,
+				},
+			},
+			Required: []string{"code"},
+		},
+	}, b.handleCodeMode)
 }
 
 func registerUTCPRunChain(b *UTCPMCPBridge) {
@@ -277,9 +303,36 @@ func (b *UTCPMCPBridge) handleRunChain(
 	resJSON, _ := json.Marshal(result)
 	return mark3lab.NewToolResultText(string(resJSON)), nil
 }
+func (b *UTCPMCPBridge) handleCallTool(ctx context.Context, request mark3lab.CallToolRequest) (*mark3lab.CallToolResult, error) {
+
+	argsRaw, ok := request.Params.Arguments.(map[string]any)
+	if !ok {
+		return mark3lab.NewToolResultError("invalid arguments"), nil
+	}
+
+	code, _ := argsRaw["code"].(string)
+
+	timeout := 3000
+	if t, ok := argsRaw["timeout"].(float64); ok {
+		timeout = int(t)
+	}
+
+	cmArgs := codemode.CodeModeArgs{
+		Code:    code,
+		Timeout: timeout,
+	}
+
+	result, err := b.utcpCode.Execute(ctx, cmArgs)
+	if err != nil {
+		return mark3lab.NewToolResultError(fmt.Sprintf("codemode error: %v", err)), nil
+	}
+
+	resJSON, _ := json.Marshal(result)
+	return mark3lab.NewToolResultText(string(resJSON)), nil
+}
 
 // Handlers using server.CallToolRequest / server.CallToolResult
-func (b *UTCPMCPBridge) handleCallTool(ctx context.Context, request mark3lab.CallToolRequest) (*mark3lab.CallToolResult, error) {
+func (b *UTCPMCPBridge) handleCodeMode(ctx context.Context, request mark3lab.CallToolRequest) (*mark3lab.CallToolResult, error) {
 	args, ok := request.Params.Arguments.(map[string]any)
 	if !ok {
 		return mark3lab.NewToolResultError("invalid arguments"), nil
@@ -409,8 +462,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create UTCP client: %v", err)
 	}
-	utcpChain := chain.UtcpChainClient{Client: utcpClient}
-	bridge, err := NewUTCPMCPBridge(utcpClient, utcpChain)
+	bridge, err := NewUTCPMCPBridge(utcpClient)
 	if err != nil {
 		log.Fatalf("Failed to create MCP bridge: %v", err)
 	}
