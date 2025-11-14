@@ -1,8 +1,6 @@
 ![MCP vs. UTCP](https://github.com/universal-tool-calling-protocol/.github/raw/main/assets/banner.png)
 
-**UTCP MCP Bridge** connects the [Universal Tool Calling Protocol (UTCP)](https://github.com/universal-tool-calling-protocol/go-utcp) to an [MCP (Mark3Labs Communication Protocol) server](https://github.com/mark3labs/mcp-go), allowing UTCP tools to be exposed and called via MCP-compatible clients.
-
-This bridge enables seamless integration between UTCP tools and any MCP-based ecosystem, providing standard tool invocation, search, streaming, and provider registration functionalities.
+This **utcp bridge** enables seamless integration between UTCP tools and any MCP-based ecosystem, providing standard tool invocation, search, streaming, and provider registration functionalities.
 A lightweight Go-based bridge that exposes **UTCP tools**, **UTCP chains**, and **UTCP CodeMode** execution as **MCP tools** — enabling any MCP-compatible client (Claude Desktop, Claude CLI, LLM runtimes implementing MCP) to call UTCP tools seamlessly.
 
 This bridge lets you:
