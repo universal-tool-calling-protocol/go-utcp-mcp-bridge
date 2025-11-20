@@ -131,7 +131,7 @@ func NewUTCPMCPBridge(utcpClient utcp.UtcpClientInterface) (*UTCPMCPBridge, erro
 		utcpChain: chain.UtcpChainClient{
 			Client: utcpClient,
 		},
-		utcpCode: *codemode.NewCodeModeUTCP(utcpClient),
+		utcpCode: *codemode.NewCodeModeUTCP(utcpClient, nil),
 	}
 
 	// Create MCP server
