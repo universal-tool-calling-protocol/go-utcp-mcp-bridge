@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/mark3labs/mcp-go v0.43.0
-	github.com/universal-tool-calling-protocol/go-utcp v1.7.5-0.20251120100420-56006482662f
+	github.com/universal-tool-calling-protocol/go-utcp v1.10.5
 )
 
 require (
